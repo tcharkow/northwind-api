@@ -1,10 +1,9 @@
+import os
 import psycopg2
 import pandas as pd
-import json
-import math
-from fastapi.responses import JSONResponse
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
@@ -16,12 +15,7 @@ app.add_middleware(
 )
 
 def get_connection():
-    return psycopg2.connect(
-        dbname="northwind",
-        user="tcharkow",
-        host="localhost",
-        port="5432"
-    )
+    return psycopg2.connect(os.environ.get("DATABASE_URL"))
 
 @app.get("/")
 def health_check():
@@ -46,9 +40,5 @@ def customer_ltv():
     conn = get_connection()
     df = pd.read_sql("SELECT * FROM public.customer_ltv", conn)
     conn.close()
-    records = df.to_dict(orient="records")
-    clean = [
-        {k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in row.items()}
-        for row in records
-    ]
-    return JSONResponse(content=clean)
+    df = df.where(pd.notnull(df), None)
+    return df.to_dict(orient="records")
