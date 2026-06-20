@@ -37,8 +37,13 @@ def product_performance():
 
 @app.get("/api/customer-ltv")
 def customer_ltv():
+    import math
     conn = get_connection()
     df = pd.read_sql("SELECT * FROM public.customer_ltv", conn)
     conn.close()
-    df = df.where(pd.notnull(df), None)
-    return df.to_dict(orient="records")
+    records = df.to_dict(orient="records")
+    clean = [
+        {k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in row.items()}
+        for row in records
+    ]
+    return JSONResponse(content=clean)
