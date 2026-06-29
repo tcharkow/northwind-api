@@ -1,6 +1,4 @@
 import os
-import psycopg2
-import pandas as pd
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -14,8 +12,202 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def get_connection():
-    return psycopg2.connect(os.environ.get("DATABASE_URL"))
+REVENUE_BY_MONTH = [
+    {"month": "1996-07-01", "revenue": 27861.90},
+    {"month": "1996-08-01", "revenue": 25485.28},
+    {"month": "1996-09-01", "revenue": 26381.40},
+    {"month": "1996-10-01", "revenue": 37515.73},
+    {"month": "1996-11-01", "revenue": 45600.05},
+    {"month": "1996-12-01", "revenue": 45239.63},
+    {"month": "1997-01-01", "revenue": 61258.07},
+    {"month": "1997-02-01", "revenue": 38483.64},
+    {"month": "1997-03-01", "revenue": 38547.22},
+    {"month": "1997-04-01", "revenue": 53032.95},
+    {"month": "1997-05-01", "revenue": 53781.29},
+    {"month": "1997-06-01", "revenue": 36362.80},
+    {"month": "1997-07-01", "revenue": 51020.86},
+    {"month": "1997-08-01", "revenue": 47287.67},
+    {"month": "1997-09-01", "revenue": 55629.24},
+    {"month": "1997-10-01", "revenue": 66749.23},
+    {"month": "1997-11-01", "revenue": 43533.81},
+    {"month": "1997-12-01", "revenue": 71398.43},
+    {"month": "1998-01-01", "revenue": 94222.11},
+    {"month": "1998-02-01", "revenue": 99415.29},
+    {"month": "1998-03-01", "revenue": 104854.16},
+    {"month": "1998-04-01", "revenue": 123798.68},
+    {"month": "1998-05-01", "revenue": 18333.63},
+]
+
+PRODUCT_PERFORMANCE = [
+    {"product_id": 38, "product_name": "Côte de Blaye", "revenue": 141396.74, "units_sold": 623},
+    {"product_id": 29, "product_name": "Thüringer Rostbratwurst", "revenue": 80368.67, "units_sold": 746},
+    {"product_id": 59, "product_name": "Raclette Courdavault", "revenue": 71155.70, "units_sold": 1496},
+    {"product_id": 62, "product_name": "Tarte au sucre", "revenue": 47234.97, "units_sold": 1083},
+    {"product_id": 60, "product_name": "Camembert Pierrot", "revenue": 46825.48, "units_sold": 1577},
+    {"product_id": 56, "product_name": "Gnocchi di nonna Alice", "revenue": 42593.06, "units_sold": 1263},
+    {"product_id": 51, "product_name": "Manjimup Dried Apples", "revenue": 41819.65, "units_sold": 886},
+    {"product_id": 17, "product_name": "Alice Mutton", "revenue": 32698.38, "units_sold": 978},
+    {"product_id": 18, "product_name": "Carnarvon Tigers", "revenue": 29171.88, "units_sold": 539},
+    {"product_id": 28, "product_name": "Rössle Sauerkraut", "revenue": 25696.64, "units_sold": 640},
+    {"product_id": 72, "product_name": "Mozzarella di Giovanni", "revenue": 24900.13, "units_sold": 806},
+    {"product_id": 43, "product_name": "Ipoh Coffee", "revenue": 23526.70, "units_sold": 580},
+    {"product_id": 20, "product_name": "Sir Rodney's Marmalade", "revenue": 22563.36, "units_sold": 313},
+    {"product_id": 7, "product_name": "Uncle Bob's Organic Dried Pears", "revenue": 22044.30, "units_sold": 763},
+    {"product_id": 64, "product_name": "Wimmers gute Semmelknödel", "revenue": 21957.97, "units_sold": 740},
+    {"product_id": 69, "product_name": "Gudbrandsdalsost", "revenue": 21942.36, "units_sold": 714},
+    {"product_id": 10, "product_name": "Ikura", "revenue": 20867.34, "units_sold": 742},
+    {"product_id": 53, "product_name": "Perth Pasties", "revenue": 20574.17, "units_sold": 722},
+    {"product_id": 26, "product_name": "Gumbär Gummibärchen", "revenue": 19849.14, "units_sold": 753},
+    {"product_id": 71, "product_name": "Flotemysost", "revenue": 19551.03, "units_sold": 1057},
+    {"product_id": 40, "product_name": "Boston Crab Meat", "revenue": 17910.63, "units_sold": 1103},
+    {"product_id": 55, "product_name": "Pâté chinois", "revenue": 17426.40, "units_sold": 903},
+    {"product_id": 16, "product_name": "Pavlova", "revenue": 17215.78, "units_sold": 1158},
+    {"product_id": 63, "product_name": "Vegie-spread", "revenue": 16701.10, "units_sold": 445},
+    {"product_id": 2, "product_name": "Chang", "revenue": 16355.96, "units_sold": 1057},
+    {"product_id": 76, "product_name": "Lakkalikööri", "revenue": 15760.44, "units_sold": 981},
+    {"product_id": 27, "product_name": "Schoggi Schokolade", "revenue": 15099.88, "units_sold": 365},
+    {"product_id": 31, "product_name": "Gorgonzola Telino", "revenue": 14920.88, "units_sold": 1397},
+    {"product_id": 61, "product_name": "Sirop d'érable", "revenue": 14352.60, "units_sold": 603},
+    {"product_id": 65, "product_name": "Louisiana Fiery Hot Pepper Sauce", "revenue": 13869.89, "units_sold": 745},
+    {"product_id": 35, "product_name": "Steeleye Stout", "revenue": 13644.00, "units_sold": 883},
+    {"product_id": 36, "product_name": "Inlagd Sill", "revenue": 13458.46, "units_sold": 805},
+    {"product_id": 30, "product_name": "Nord-Ost Matjeshering", "revenue": 13424.20, "units_sold": 612},
+    {"product_id": 11, "product_name": "Queso Cabrales", "revenue": 12901.77, "units_sold": 706},
+    {"product_id": 1, "product_name": "Chai", "revenue": 12788.10, "units_sold": 828},
+    {"product_id": 8, "product_name": "Northwoods Cranberry Sauce", "revenue": 12772.00, "units_sold": 372},
+    {"product_id": 39, "product_name": "Chartreuse verte", "revenue": 12294.54, "units_sold": 793},
+    {"product_id": 12, "product_name": "Queso Manchego La Pastora", "revenue": 12257.66, "units_sold": 344},
+    {"product_id": 70, "product_name": "Outback Lager", "revenue": 10672.65, "units_sold": 817},
+    {"product_id": 44, "product_name": "Gula Malacca", "revenue": 9915.95, "units_sold": 601},
+    {"product_id": 49, "product_name": "Maxilaku", "revenue": 9244.60, "units_sold": 520},
+    {"product_id": 77, "product_name": "Original Frankfurter grüne Soße", "revenue": 9171.63, "units_sold": 791},
+    {"product_id": 21, "product_name": "Sir Rodney's Scones", "revenue": 9104.00, "units_sold": 1016},
+    {"product_id": 68, "product_name": "Scottish Longbreads", "revenue": 8714.00, "units_sold": 799},
+    {"product_id": 41, "product_name": "Jack's New England Clam Chowder", "revenue": 8680.35, "units_sold": 981},
+    {"product_id": 42, "product_name": "Singaporean Hokkien Fried Mee", "revenue": 8575.00, "units_sold": 697},
+    {"product_id": 4, "product_name": "Chef Anton's Cajun Seasoning", "revenue": 8567.90, "units_sold": 453},
+    {"product_id": 32, "product_name": "Mascarpone Fabioli", "revenue": 8404.16, "units_sold": 297},
+    {"product_id": 75, "product_name": "Rhönbräu Klosterbier", "revenue": 8177.49, "units_sold": 1155},
+    {"product_id": 14, "product_name": "Tofu", "revenue": 7991.49, "units_sold": 404},
+    {"product_id": 57, "product_name": "Ravioli Angelo", "revenue": 7661.55, "units_sold": 434},
+    {"product_id": 9, "product_name": "Mishi Kobe Niku", "revenue": 7226.50, "units_sold": 95},
+    {"product_id": 6, "product_name": "Grandma's Boysenberry Spread", "revenue": 7137.00, "units_sold": 301},
+    {"product_id": 22, "product_name": "Gustaf's Knäckebröd", "revenue": 7122.36, "units_sold": 348},
+    {"product_id": 34, "product_name": "Sasquatch Ale", "revenue": 6350.40, "units_sold": 506},
+    {"product_id": 46, "product_name": "Spegesild", "revenue": 5883.00, "units_sold": 548},
+    {"product_id": 58, "product_name": "Escargots de Bourgogne", "revenue": 5881.68, "units_sold": 534},
+    {"product_id": 19, "product_name": "Teatime Chocolate Biscuits", "revenue": 5862.62, "units_sold": 723},
+    {"product_id": 5, "product_name": "Chef Anton's Gumbo Mix", "revenue": 5347.20, "units_sold": 298},
+    {"product_id": 13, "product_name": "Konbu", "revenue": 4960.44, "units_sold": 891},
+    {"product_id": 54, "product_name": "Tourtière", "revenue": 4728.24, "units_sold": 755},
+    {"product_id": 23, "product_name": "Tunnbröd", "revenue": 4601.70, "units_sold": 580},
+    {"product_id": 24, "product_name": "Guaraná Fantástica", "revenue": 4504.37, "units_sold": 1125},
+    {"product_id": 45, "product_name": "Rogede sild", "revenue": 4338.18, "units_sold": 508},
+    {"product_id": 73, "product_name": "Röd Kaviar", "revenue": 3997.20, "units_sold": 293},
+    {"product_id": 47, "product_name": "Zaanse koeken", "revenue": 3958.08, "units_sold": 485},
+    {"product_id": 25, "product_name": "NuNuCa Nuß-Nougat-Creme", "revenue": 3704.40, "units_sold": 318},
+    {"product_id": 50, "product_name": "Valkoinen suklaa", "revenue": 3437.69, "units_sold": 235},
+    {"product_id": 66, "product_name": "Louisiana Hot Spiced Okra", "revenue": 3383.00, "units_sold": 239},
+    {"product_id": 52, "product_name": "Filo Mix", "revenue": 3232.95, "units_sold": 500},
+    {"product_id": 3, "product_name": "Aniseed Syrup", "revenue": 3044.00, "units_sold": 328},
+    {"product_id": 37, "product_name": "Gravad lax", "revenue": 2688.40, "units_sold": 125},
+    {"product_id": 74, "product_name": "Longlife Tofu", "revenue": 2432.50, "units_sold": 297},
+    {"product_id": 67, "product_name": "Laughing Lumberjack Lager", "revenue": 2396.80, "units_sold": 184},
+    {"product_id": 15, "product_name": "Genen Shouyu", "revenue": 1784.83, "units_sold": 122},
+    {"product_id": 33, "product_name": "Geitost", "revenue": 1648.13, "units_sold": 755},
+    {"product_id": 48, "product_name": "Chocolade", "revenue": 1368.71, "units_sold": 138},
+]
+
+CUSTOMER_LTV = [
+    {"customer_id": "QUICK", "company_name": "QUICK-Stop", "city": "Cunewalde", "region": None, "total_orders": 28, "lifetime_revenue": 110277.31},
+    {"customer_id": "ERNSH", "company_name": "Ernst Handel", "city": "Graz", "region": None, "total_orders": 30, "lifetime_revenue": 104874.98},
+    {"customer_id": "SAVEA", "company_name": "Save-a-lot Markets", "city": "Boise", "region": "ID", "total_orders": 31, "lifetime_revenue": 104361.95},
+    {"customer_id": "RATTC", "company_name": "Rattlesnake Canyon Grocery", "city": "Albuquerque", "region": "NM", "total_orders": 18, "lifetime_revenue": 51097.80},
+    {"customer_id": "HUNGO", "company_name": "Hungry Owl All-Night Grocers", "city": "Cork", "region": "Co. Cork", "total_orders": 19, "lifetime_revenue": 49979.91},
+    {"customer_id": "HANAR", "company_name": "Hanari Carnes", "city": "Rio de Janeiro", "region": "RJ", "total_orders": 14, "lifetime_revenue": 32841.37},
+    {"customer_id": "KOENE", "company_name": "Königlich Essen", "city": "Brandenburg", "region": None, "total_orders": 14, "lifetime_revenue": 30908.38},
+    {"customer_id": "FOLKO", "company_name": "Folk och fä HB", "city": "Bräcke", "region": None, "total_orders": 19, "lifetime_revenue": 29567.56},
+    {"customer_id": "MEREP", "company_name": "Mère Paillarde", "city": "Montréal", "region": "Québec", "total_orders": 13, "lifetime_revenue": 28872.19},
+    {"customer_id": "WHITC", "company_name": "White Clover Markets", "city": "Seattle", "region": "WA", "total_orders": 14, "lifetime_revenue": 27363.61},
+    {"customer_id": "FRANK", "company_name": "Frankenversand", "city": "München", "region": None, "total_orders": 15, "lifetime_revenue": 26656.56},
+    {"customer_id": "QUEEN", "company_name": "Queen Cozinha", "city": "Sao Paulo", "region": "SP", "total_orders": 13, "lifetime_revenue": 25717.50},
+    {"customer_id": "BERGS", "company_name": "Berglunds snabbköp", "city": "Luleå", "region": None, "total_orders": 18, "lifetime_revenue": 24927.58},
+    {"customer_id": "SUPRD", "company_name": "Suprêmes délices", "city": "Charleroi", "region": None, "total_orders": 12, "lifetime_revenue": 24088.78},
+    {"customer_id": "PICCO", "company_name": "Piccolo und mehr", "city": "Salzburg", "region": None, "total_orders": 10, "lifetime_revenue": 23128.86},
+    {"customer_id": "HILAA", "company_name": "HILARION-Abastos", "city": "San Cristóbal", "region": "Táchira", "total_orders": 18, "lifetime_revenue": 22768.76},
+    {"customer_id": "BONAP", "company_name": "Bon app'", "city": "Marseille", "region": None, "total_orders": 17, "lifetime_revenue": 21963.25},
+    {"customer_id": "BOTTM", "company_name": "Bottom-Dollar Markets", "city": "Tsawassen", "region": "BC", "total_orders": 14, "lifetime_revenue": 20801.60},
+    {"customer_id": "RICSU", "company_name": "Richter Supermarkt", "city": "Genève", "region": None, "total_orders": 10, "lifetime_revenue": 19343.78},
+    {"customer_id": "LEHMS", "company_name": "Lehmanns Marktstand", "city": "Frankfurt a.M.", "region": None, "total_orders": 15, "lifetime_revenue": 19261.41},
+    {"customer_id": "BLONP", "company_name": "Blondesddsl père et fils", "city": "Strasbourg", "region": None, "total_orders": 11, "lifetime_revenue": 18534.08},
+    {"customer_id": "GREAL", "company_name": "Great Lakes Food Market", "city": "Eugene", "region": "OR", "total_orders": 11, "lifetime_revenue": 18507.45},
+    {"customer_id": "SIMOB", "company_name": "Simons bistro", "city": "Kobenhavn", "region": None, "total_orders": 7, "lifetime_revenue": 16817.10},
+    {"customer_id": "LINOD", "company_name": "LINO-Delicateses", "city": "I. de Margarita", "region": "Nueva Esparta", "total_orders": 12, "lifetime_revenue": 16476.57},
+    {"customer_id": "SEVES", "company_name": "Seven Seas Imports", "city": "London", "region": None, "total_orders": 9, "lifetime_revenue": 16215.33},
+    {"customer_id": "LILAS", "company_name": "LILA-Supermercado", "city": "Barquisimeto", "region": "Lara", "total_orders": 14, "lifetime_revenue": 16076.60},
+    {"customer_id": "VAFFE", "company_name": "Vaffeljernet", "city": "Århus", "region": None, "total_orders": 11, "lifetime_revenue": 15843.93},
+    {"customer_id": "WARTH", "company_name": "Wartian Herkku", "city": "Oulu", "region": None, "total_orders": 15, "lifetime_revenue": 15648.70},
+    {"customer_id": "OLDWO", "company_name": "Old World Delicatessen", "city": "Anchorage", "region": "AK", "total_orders": 10, "lifetime_revenue": 15177.46},
+    {"customer_id": "EASTC", "company_name": "Eastern Connection", "city": "London", "region": None, "total_orders": 8, "lifetime_revenue": 14761.04},
+    {"customer_id": "AROUT", "company_name": "Around the Horn", "city": "London", "region": None, "total_orders": 13, "lifetime_revenue": 13390.65},
+    {"customer_id": "OTTIK", "company_name": "Ottilies Käseladen", "city": "Köln", "region": None, "total_orders": 10, "lifetime_revenue": 12496.20},
+    {"customer_id": "RICAR", "company_name": "Ricardo Adocicados", "city": "Rio de Janeiro", "region": "RJ", "total_orders": 11, "lifetime_revenue": 12450.80},
+    {"customer_id": "CHOPS", "company_name": "Chop-suey Chinese", "city": "Bern", "region": None, "total_orders": 8, "lifetime_revenue": 12348.88},
+    {"customer_id": "FOLIG", "company_name": "Folies gourmandes", "city": "Lille", "region": None, "total_orders": 5, "lifetime_revenue": 11666.90},
+    {"customer_id": "GODOS", "company_name": "Godos Cocina Típica", "city": "Sevilla", "region": None, "total_orders": 10, "lifetime_revenue": 11446.36},
+    {"customer_id": "SPLIR", "company_name": "Split Rail Beer & Ale", "city": "Lander", "region": "WY", "total_orders": 9, "lifetime_revenue": 11441.63},
+    {"customer_id": "TORTU", "company_name": "Tortuga Restaurante", "city": "México D.F.", "region": None, "total_orders": 10, "lifetime_revenue": 10812.15},
+    {"customer_id": "MAISD", "company_name": "Maison Dewey", "city": "Bruxelles", "region": None, "total_orders": 7, "lifetime_revenue": 9736.08},
+    {"customer_id": "WANDK", "company_name": "Die Wandernde Kuh", "city": "Stuttgart", "region": None, "total_orders": 10, "lifetime_revenue": 9588.43},
+    {"customer_id": "LAMAI", "company_name": "La maison d'Asie", "city": "Toulouse", "region": None, "total_orders": 14, "lifetime_revenue": 9328.20},
+    {"customer_id": "VICTE", "company_name": "Victuailles en stock", "city": "Lyon", "region": None, "total_orders": 10, "lifetime_revenue": 9182.43},
+    {"customer_id": "GOURL", "company_name": "Gourmet Lanchonetes", "city": "Campinas", "region": "SP", "total_orders": 9, "lifetime_revenue": 8414.14},
+    {"customer_id": "MAGAA", "company_name": "Magazzini Alimentari Riuniti", "city": "Bergamo", "region": None, "total_orders": 10, "lifetime_revenue": 7176.22},
+    {"customer_id": "REGGC", "company_name": "Reggiani Caseifici", "city": "Reggio Emilia", "region": None, "total_orders": 12, "lifetime_revenue": 7048.24},
+    {"customer_id": "ANTON", "company_name": "Antonio Moreno Taquería", "city": "México D.F.", "region": None, "total_orders": 7, "lifetime_revenue": 7023.98},
+    {"customer_id": "TRADH", "company_name": "Tradição Hipermercados", "city": "Sao Paulo", "region": "SP", "total_orders": 6, "lifetime_revenue": 6850.66},
+    {"customer_id": "FURIB", "company_name": "Furia Bacalhau e Frutos do Mar", "city": "Lisboa", "region": None, "total_orders": 8, "lifetime_revenue": 6427.42},
+    {"customer_id": "ISLAT", "company_name": "Island Trading", "city": "Cowes", "region": "Isle of Wight", "total_orders": 10, "lifetime_revenue": 6146.30},
+    {"customer_id": "BSBEV", "company_name": "B's Beverages", "city": "London", "region": None, "total_orders": 10, "lifetime_revenue": 6089.90},
+    {"customer_id": "WELLI", "company_name": "Wellington Importadora", "city": "Resende", "region": "SP", "total_orders": 9, "lifetime_revenue": 6068.20},
+    {"customer_id": "SANTG", "company_name": "Santé Gourmet", "city": "Stavern", "region": None, "total_orders": 6, "lifetime_revenue": 5735.15},
+    {"customer_id": "PRINI", "company_name": "Princesa Isabel Vinhos", "city": "Lisboa", "region": None, "total_orders": 5, "lifetime_revenue": 5044.94},
+    {"customer_id": "MORGK", "company_name": "Morgenstern Gesundkost", "city": "Leipzig", "region": None, "total_orders": 5, "lifetime_revenue": 5042.20},
+    {"customer_id": "TOMSP", "company_name": "Toms Spezialitäten", "city": "Münster", "region": None, "total_orders": 6, "lifetime_revenue": 4778.14},
+    {"customer_id": "ALFKI", "company_name": "Alfreds Futterkiste", "city": "Berlin", "region": None, "total_orders": 6, "lifetime_revenue": 4273.00},
+    {"customer_id": "LONEP", "company_name": "Lonesome Pine Restaurant", "city": "Portland", "region": "OR", "total_orders": 8, "lifetime_revenue": 4258.60},
+    {"customer_id": "PERIC", "company_name": "Pericles Comidas clásicas", "city": "México D.F.", "region": None, "total_orders": 6, "lifetime_revenue": 4242.20},
+    {"customer_id": "BOLID", "company_name": "Bólido Comidas preparadas", "city": "Madrid", "region": None, "total_orders": 3, "lifetime_revenue": 4232.85},
+    {"customer_id": "FAMIA", "company_name": "Familia Arquibaldo", "city": "Sao Paulo", "region": "SP", "total_orders": 7, "lifetime_revenue": 4107.55},
+    {"customer_id": "COMMI", "company_name": "Comércio Mineiro", "city": "Sao Paulo", "region": "SP", "total_orders": 5, "lifetime_revenue": 3810.75},
+    {"customer_id": "DRACD", "company_name": "Drachenblut Delikatessen", "city": "Aachen", "region": None, "total_orders": 6, "lifetime_revenue": 3763.21},
+    {"customer_id": "WOLZA", "company_name": "Wolski Zajazd", "city": "Warszawa", "region": None, "total_orders": 7, "lifetime_revenue": 3531.95},
+    {"customer_id": "OCEAN", "company_name": "Océano Atlántico Ltda.", "city": "Buenos Aires", "region": None, "total_orders": 5, "lifetime_revenue": 3460.20},
+    {"customer_id": "THEBI", "company_name": "The Big Cheese", "city": "Portland", "region": "OR", "total_orders": 4, "lifetime_revenue": 3361.00},
+    {"customer_id": "BLAUS", "company_name": "Blauer See Delikatessen", "city": "Mannheim", "region": None, "total_orders": 7, "lifetime_revenue": 3239.80},
+    {"customer_id": "FRANR", "company_name": "France restauration", "city": "Nantes", "region": None, "total_orders": 3, "lifetime_revenue": 3172.16},
+    {"customer_id": "WILMK", "company_name": "Wilman Kala", "city": "Helsinki", "region": None, "total_orders": 7, "lifetime_revenue": 3161.35},
+    {"customer_id": "LETSS", "company_name": "Let's Stop N Shop", "city": "San Francisco", "region": "CA", "total_orders": 4, "lifetime_revenue": 3076.47},
+    {"customer_id": "HUNGC", "company_name": "Hungry Coyote Import Store", "city": "Elgin", "region": "OR", "total_orders": 5, "lifetime_revenue": 3063.20},
+    {"customer_id": "RANCH", "company_name": "Rancho grande", "city": "Buenos Aires", "region": None, "total_orders": 5, "lifetime_revenue": 2844.10},
+    {"customer_id": "SPECD", "company_name": "Spécialités du monde", "city": "Paris", "region": None, "total_orders": 4, "lifetime_revenue": 2423.35},
+    {"customer_id": "LACOR", "company_name": "La corne d'abondance", "city": "Versailles", "region": None, "total_orders": 4, "lifetime_revenue": 1992.05},
+    {"customer_id": "THECR", "company_name": "The Cracker Box", "city": "Butte", "region": "MT", "total_orders": 3, "lifetime_revenue": 1947.24},
+    {"customer_id": "CACTU", "company_name": "Cactus Comidas para llevar", "city": "Buenos Aires", "region": None, "total_orders": 6, "lifetime_revenue": 1814.80},
+    {"customer_id": "CONSH", "company_name": "Consolidated Holdings", "city": "London", "region": None, "total_orders": 3, "lifetime_revenue": 1719.10},
+    {"customer_id": "DUMON", "company_name": "Du monde entier", "city": "Nantes", "region": None, "total_orders": 4, "lifetime_revenue": 1615.90},
+    {"customer_id": "TRAIH", "company_name": "Trail's Head Gourmet Provisioners", "city": "Kirkland", "region": "WA", "total_orders": 3, "lifetime_revenue": 1571.20},
+    {"customer_id": "FRANS", "company_name": "Franchi S.p.A.", "city": "Torino", "region": None, "total_orders": 6, "lifetime_revenue": 1545.70},
+    {"customer_id": "GROSR", "company_name": "GROSELLA-Restaurante", "city": "Caracas", "region": "DF", "total_orders": 2, "lifetime_revenue": 1488.70},
+    {"customer_id": "VINET", "company_name": "Vins et alcools Chevalier", "city": "Reims", "region": None, "total_orders": 5, "lifetime_revenue": 1480.00},
+    {"customer_id": "ROMEY", "company_name": "Romero y tomillo", "city": "Madrid", "region": None, "total_orders": 5, "lifetime_revenue": 1467.29},
+    {"customer_id": "ANATR", "company_name": "Ana Trujillo Emparedados y helados", "city": "México D.F.", "region": None, "total_orders": 4, "lifetime_revenue": 1402.95},
+    {"customer_id": "GALED", "company_name": "Galería del gastrónomo", "city": "Barcelona", "region": None, "total_orders": 5, "lifetime_revenue": 836.70},
+    {"customer_id": "NORTS", "company_name": "North/South", "city": "London", "region": None, "total_orders": 3, "lifetime_revenue": 649.00},
+    {"customer_id": "LAUGB", "company_name": "Laughing Bacchus Wine Cellars", "city": "Vancouver", "region": "BC", "total_orders": 3, "lifetime_revenue": 522.50},
+    {"customer_id": "LAZYK", "company_name": "Lazy K Kountry Store", "city": "Walla Walla", "region": "WA", "total_orders": 2, "lifetime_revenue": 357.00},
+    {"customer_id": "CENTC", "company_name": "Centro comercial Moctezuma", "city": "México D.F.", "region": None, "total_orders": 1, "lifetime_revenue": 100.80},
+]
 
 @app.get("/")
 def health_check():
@@ -23,27 +215,12 @@ def health_check():
 
 @app.get("/api/revenue-by-month")
 def revenue_by_month():
-    conn = get_connection()
-    df = pd.read_sql("SELECT * FROM public.revenue_by_month", conn)
-    conn.close()
-    return df.to_dict(orient="records")
+    return JSONResponse(content=REVENUE_BY_MONTH)
 
 @app.get("/api/product-performance")
 def product_performance():
-    conn = get_connection()
-    df = pd.read_sql("SELECT * FROM public.product_performance", conn)
-    conn.close()
-    return df.to_dict(orient="records")
+    return JSONResponse(content=PRODUCT_PERFORMANCE)
 
 @app.get("/api/customer-ltv")
 def customer_ltv():
-    import math
-    conn = get_connection()
-    df = pd.read_sql("SELECT * FROM public.customer_ltv", conn)
-    conn.close()
-    records = df.to_dict(orient="records")
-    clean = [
-        {k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in row.items()}
-        for row in records
-    ]
-    return JSONResponse(content=clean)
+    return JSONResponse(content=CUSTOMER_LTV)
